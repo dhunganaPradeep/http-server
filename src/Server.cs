@@ -52,9 +52,14 @@ class Program
             // Determine the response based on the URL path
             string httpResponse;
 
-            if (method == "GET" && urlPath.StartsWith("/files/"))
+            if (method == "GET" && urlPath == "/")
             {
-                // Handle the GET request
+                // Handle GET request to the root path "/"
+                httpResponse = "HTTP/1.1 200 OK\r\n\r\n";
+            }
+            else if (method == "GET" && urlPath.StartsWith("/files/"))
+            {
+                // Handle the GET request for a file
                 string filename = urlPath.Substring(7);
                 string filePath = Path.Combine(directory, filename);
 
