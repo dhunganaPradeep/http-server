@@ -49,10 +49,48 @@ class Program
             string method = requestParts[0];
             string urlPath = requestParts[1];
 
-            // Determine the response based on the URL path
             string httpResponse;
 
-            if (urlPath == "/")
+            if (method == "POST" && urlPath.StartsWith("/files/"))
+            {
+                // Extract the filename after "/files/"
+                string filename = urlPath.Substring(7);
+                string filePath = Path.Combine(directory, filename);
+
+                // Extract headers
+                string[] headers = request.Split("\r\n");
+                int contentLength = 0;
+                bool isContentLengthFound = false;
+
+                foreach (var header in headers)
+                {
+                    if (header.StartsWith("Content-Length:"))
+                    {
+                        contentLength = int.Parse(header.Split(":")[1].Trim());
+                        isContentLengthFound = true;
+                        break;
+                    }
+                }
+
+                if (!isContentLengthFound || contentLength == 0)
+                {
+                    // Invalid request, respond with 400 Bad Request
+                    httpResponse = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                    socket.Send(Encoding.UTF8.GetBytes(httpResponse));
+                    return;
+                }
+
+                // Extract the body (the part after the headers)
+                string requestBody = request.Substring(request.IndexOf("\r\n\r\n") + 4, contentLength);
+
+                // Create the file and write the contents to it
+                File.WriteAllText(filePath, requestBody);
+
+                // Respond with 201 Created
+                httpResponse = "HTTP/1.1 201 Created\r\n\r\n";
+                socket.Send(Encoding.UTF8.GetBytes(httpResponse));
+            }
+            else if (urlPath == "/")
             {
                 httpResponse = "HTTP/1.1 200 OK\r\n\r\n";
             }
@@ -92,7 +130,7 @@ class Program
             }
             else if (urlPath.StartsWith("/files/"))
             {
-                // Extract the filename after "/files/"
+                // Handle file reading
                 string filename = urlPath.Substring(7);
                 string filePath = Path.Combine(directory, filename);
 
