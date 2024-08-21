@@ -47,6 +47,28 @@ while (true)
                        "\r\n" +
                        echoString;
     }
+    else if (urlPath == "/user-agent")
+    {
+        // Extract the User-Agent header
+        string userAgent = string.Empty;
+        string[] headers = request.Split("\r\n");
+
+        foreach (var header in headers)
+        {
+            if (header.StartsWith("User-Agent:"))
+            {
+                userAgent = header.Substring(12).Trim();  // Extract User-Agent value
+                break;
+            }
+        }
+
+        // Construct the response headers and body
+        httpResponse = "HTTP/1.1 200 OK\r\n" +
+                       "Content-Type: text/plain\r\n" +
+                       $"Content-Length: {userAgent.Length}\r\n" +
+                       "\r\n" +
+                       userAgent;
+    }
     else
     {
         httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
