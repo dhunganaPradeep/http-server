@@ -114,10 +114,14 @@ class Program
                                $"Content-Length: {echoString.Length}\r\n";
 
                 // Check for Accept-Encoding and handle accordingly
-                if (acceptEncoding != null && acceptEncoding.Contains("gzip"))
+                if (!string.IsNullOrEmpty(acceptEncoding))
                 {
-                    // Add Content-Encoding header for gzip (compression not yet implemented)
-                    httpResponse += "Content-Encoding: gzip\r\n";
+                    var encodings = acceptEncoding.Split(',').Select(e => e.Trim()).ToList();
+                    if (encodings.Contains("gzip"))
+                    {
+                        // Add Content-Encoding header for gzip (compression not yet implemented)
+                        httpResponse += "Content-Encoding: gzip\r\n";
+                    }
                 }
 
                 httpResponse += "\r\n" + echoString;
@@ -145,10 +149,14 @@ class Program
                                    $"Content-Length: {fileBytes.Length}\r\n";
 
                     // Check for Accept-Encoding and handle accordingly
-                    if (acceptEncoding != null && acceptEncoding.Contains("gzip"))
+                    if (!string.IsNullOrEmpty(acceptEncoding))
                     {
-                        // Add Content-Encoding header for gzip (compression not yet implemented)
-                        httpResponse += "Content-Encoding: gzip\r\n";
+                        var encodings = acceptEncoding.Split(',').Select(e => e.Trim()).ToList();
+                        if (encodings.Contains("gzip"))
+                        {
+                            // Add Content-Encoding header for gzip (compression not yet implemented)
+                            httpResponse += "Content-Encoding: gzip\r\n";
+                        }
                     }
 
                     httpResponse += "\r\n";
