@@ -96,40 +96,7 @@ class Program
                 string filename = urlPath.Substring(7);
                 string filePath = Path.Combine(directory, filename);
 
-                if (method == "POST")
-                {
-                    // Extract the Content-Length header to determine the size of the body
-                    int contentLength = 0;
-                    string[] headers = request.Split("\r\n");
-
-                    foreach (var header in headers)
-                    {
-                        if (header.StartsWith("Content-Length:"))
-                        {
-                            contentLength = int.Parse(header.Substring(15).Trim());
-                            break;
-                        }
-                    }
-
-                    // Read the body
-                    byte[] bodyBuffer = new byte[contentLength];
-                    int bodyReceived = socket.Receive(bodyBuffer);
-
-                    if (bodyReceived == contentLength)
-                    {
-                        // Write the body content to the file
-                        File.WriteAllBytes(filePath, bodyBuffer);
-
-                        // Send a 201 Created response
-                        httpResponse = "HTTP/1.1 201 Created\r\n\r\n";
-                    }
-                    else
-                    {
-                        // If the body isn't fully received, send a 400 Bad Request response
-                        httpResponse = "HTTP/1.1 400 Bad Request\r\n\r\n";
-                    }
-                }
-                else if (File.Exists(filePath))
+                if (File.Exists(filePath))
                 {
                     byte[] fileBytes = File.ReadAllBytes(filePath);
                     httpResponse = "HTTP/1.1 200 OK\r\n" +
