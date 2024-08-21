@@ -49,28 +49,37 @@ class Program
             string method = requestParts[0];
             string urlPath = requestParts[1];
 
+            // Extract headers
+            string[] headers = request.Split("\r\n");
+            string acceptEncoding = null;
+            string userAgent = null;
+            int contentLength = 0;
+            bool isContentLengthFound = false;
+
+            foreach (var header in headers)
+            {
+                if (header.StartsWith("Accept-Encoding:"))
+                {
+                    acceptEncoding = header.Substring(17).Trim();  // Extract Accept-Encoding value
+                }
+                else if (header.StartsWith("User-Agent:"))
+                {
+                    userAgent = header.Substring(12).Trim();  // Extract User-Agent value
+                }
+                else if (header.StartsWith("Content-Length:"))
+                {
+                    contentLength = int.Parse(header.Split(":")[1].Trim());
+                    isContentLengthFound = true;
+                }
+            }
+
             string httpResponse;
 
             if (method == "POST" && urlPath.StartsWith("/files/"))
             {
-                // Extract the filename after "/files/"
+                // Handle file creation
                 string filename = urlPath.Substring(7);
                 string filePath = Path.Combine(directory, filename);
-
-                // Extract headers
-                string[] headers = request.Split("\r\n");
-                int contentLength = 0;
-                bool isContentLengthFound = false;
-
-                foreach (var header in headers)
-                {
-                    if (header.StartsWith("Content-Length:"))
-                    {
-                        contentLength = int.Parse(header.Split(":")[1].Trim());
-                        isContentLengthFound = true;
-                        break;
-                    }
-                }
 
                 if (!isContentLengthFound || contentLength == 0)
                 {
@@ -102,25 +111,19 @@ class Program
                 // Construct the response headers and body
                 httpResponse = "HTTP/1.1 200 OK\r\n" +
                                "Content-Type: text/plain\r\n" +
-                               $"Content-Length: {echoString.Length}\r\n" +
-                               "\r\n" +
-                               echoString;
+                               $"Content-Length: {echoString.Length}\r\n";
+
+                // Check for Accept-Encoding and handle accordingly
+                if (acceptEncoding != null && acceptEncoding.Contains("gzip"))
+                {
+                    // Add Content-Encoding header for gzip (compression not yet implemented)
+                    httpResponse += "Content-Encoding: gzip\r\n";
+                }
+
+                httpResponse += "\r\n" + echoString;
             }
             else if (urlPath == "/user-agent")
             {
-                // Extract the User-Agent header
-                string userAgent = string.Empty;
-                string[] headers = request.Split("\r\n");
-
-                foreach (var header in headers)
-                {
-                    if (header.StartsWith("User-Agent:"))
-                    {
-                        userAgent = header.Substring(12).Trim();  // Extract User-Agent value
-                        break;
-                    }
-                }
-
                 // Construct the response headers and body
                 httpResponse = "HTTP/1.1 200 OK\r\n" +
                                "Content-Type: text/plain\r\n" +
@@ -139,8 +142,16 @@ class Program
                     byte[] fileBytes = File.ReadAllBytes(filePath);
                     httpResponse = "HTTP/1.1 200 OK\r\n" +
                                    "Content-Type: application/octet-stream\r\n" +
-                                   $"Content-Length: {fileBytes.Length}\r\n" +
-                                   "\r\n";
+                                   $"Content-Length: {fileBytes.Length}\r\n";
+
+                    // Check for Accept-Encoding and handle accordingly
+                    if (acceptEncoding != null && acceptEncoding.Contains("gzip"))
+                    {
+                        // Add Content-Encoding header for gzip (compression not yet implemented)
+                        httpResponse += "Content-Encoding: gzip\r\n";
+                    }
+
+                    httpResponse += "\r\n";
                     socket.Send(Encoding.UTF8.GetBytes(httpResponse));
                     socket.Send(fileBytes);  // Send file content separately
                     return;
