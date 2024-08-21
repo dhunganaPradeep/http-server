@@ -6,8 +6,20 @@ using System.Threading.Tasks;
 
 class Program
 {
+    static string fileDirectory;
+
     static void Main(string[] args)
     {
+        // Check if the directory argument is provided
+        if (args.Length < 2 || args[0] != "--directory")
+        {
+            Console.WriteLine("Usage: ./your_server --directory <directory_path>");
+            return;
+        }
+
+        // Set the file directory from the command-line argument
+        fileDirectory = args[1];
+
         TcpListener server = new TcpListener(IPAddress.Any, 4221);
         server.Start();
         Console.WriteLine("Server started on port 4221");
@@ -41,51 +53,10 @@ class Program
             // Determine the response based on the URL path
             string httpResponse;
 
-            if (urlPath == "/")
-            {
-                httpResponse = "HTTP/1.1 200 OK\r\n\r\n";
-            }
-            else if (urlPath.StartsWith("/echo/"))
-            {
-                // Extract the string after "/echo/"
-                string echoString = urlPath.Substring(6);
-
-                // Construct the response headers and body
-                httpResponse = "HTTP/1.1 200 OK\r\n" +
-                               "Content-Type: text/plain\r\n" +
-                               $"Content-Length: {echoString.Length}\r\n" +
-                               "\r\n" +
-                               echoString;
-            }
-            else if (urlPath == "/user-agent")
-            {
-                // Extract the User-Agent header
-                string userAgent = string.Empty;
-                string[] headers = request.Split("\r\n");
-
-                foreach (var header in headers)
-                {
-                    if (header.StartsWith("User-Agent:"))
-                    {
-                        userAgent = header.Substring(12).Trim();  // Extract User-Agent value
-                        break;
-                    }
-                }
-
-                // Construct the response headers and body
-                httpResponse = "HTTP/1.1 200 OK\r\n" +
-                               "Content-Type: text/plain\r\n" +
-                               $"Content-Length: {userAgent.Length}\r\n" +
-                               "\r\n" +
-                               userAgent;
-            }
-            else if (urlPath.StartsWith("/files/"))
+            if (urlPath.StartsWith("/files/"))
             {
                 // Extract the filename from the URL
                 string fileName = urlPath.Substring(7);
-
-                // Define the directory where files are stored
-                string fileDirectory = "files";  // Assuming files are stored in a folder named "files"
 
                 // Get the full file path
                 string filePath = Path.Combine(fileDirectory, fileName);
@@ -93,27 +64,27 @@ class Program
                 if (File.Exists(filePath))
                 {
                     byte[] fileBytes = File.ReadAllBytes(filePath);
-                    string fileContent = Encoding.UTF8.GetString(fileBytes);
 
                     // Construct the response headers and body
                     httpResponse = "HTTP/1.1 200 OK\r\n" +
                                    "Content-Type: text/plain\r\n" +  // Set appropriate content type based on file
                                    $"Content-Length: {fileBytes.Length}\r\n" +
-                                   "\r\n" +
-                                   fileContent;
+                                   "\r\n";
+
+                    socket.Send(Encoding.UTF8.GetBytes(httpResponse));
+                    socket.Send(fileBytes); // Send file content separately
                 }
                 else
                 {
                     httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
+                    socket.Send(Encoding.UTF8.GetBytes(httpResponse));
                 }
             }
             else
             {
                 httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
+                socket.Send(Encoding.UTF8.GetBytes(httpResponse));
             }
-
-            // Send the response
-            socket.Send(Encoding.UTF8.GetBytes(httpResponse));
         }
         catch (Exception ex)
         {
