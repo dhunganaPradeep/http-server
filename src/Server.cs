@@ -35,6 +35,18 @@ while (true)
     {
         httpResponse = "HTTP/1.1 200 OK\r\n\r\n";
     }
+    else if (urlPath.StartsWith("/echo/"))
+    {
+        // Extract the string after "/echo/"
+        string echoString = urlPath.Substring(6);
+
+        // Construct the response headers and body
+        httpResponse = "HTTP/1.1 200 OK\r\n" +
+                       "Content-Type: text/plain\r\n" +
+                       $"Content-Length: {echoString.Length}\r\n" +
+                       "\r\n" +
+                       echoString;
+    }
     else
     {
         httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
