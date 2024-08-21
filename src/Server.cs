@@ -88,59 +88,16 @@ class Program
                                "\r\n" +
                                userAgent;
             }
-   else if (urlPath.StartsWith("/files/"))
-            {
-                // Extract the filename from the URL path
-                string filename = urlPath.Substring(7);
-
-                // Path to the file (Assuming files are stored in the "wwwroot" directory)
-                string filePath = Path.Combine("wwwroot", filename);
-
-                if (File.Exists(filePath))
-                {
-                    // Read the file contents
-                    byte[] fileContents = await File.ReadAllBytesAsync(filePath);
-
-                    // Determine content type based on file extension
-                    string contentType = "application/octet-stream"; // Default MIME type
-                    string extension = Path.GetExtension(filename).ToLower();
-                    if (extension == ".html")
-                        contentType = "text/html";
-                    else if (extension == ".txt")
-                        contentType = "text/plain";
-                    else if (extension == ".jpg" || extension == ".jpeg")
-                        contentType = "image/jpeg";
-                    else if (extension == ".png")
-                        contentType = "image/png";
-
-                    // Construct the response headers and body
-                    httpResponse = $"HTTP/1.1 200 OK\r\n" +
-                                   $"Content-Type: {contentType}\r\n" +
-                                   $"Content-Length: {fileContents.Length}\r\n" +
-                                   "\r\n";
-                    
-                    // Send headers
-                    byte[] responseHeaders = Encoding.UTF8.GetBytes(httpResponse);
-                    await stream.WriteAsync(responseHeaders, 0, responseHeaders.Length);
-                    
-                    // Send file contents
-                    await stream.WriteAsync(fileContents, 0, fileContents.Length);
-                }
-                else
-                {
-                    // File not found
-                    httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
-                    byte[] responseBytes = Encoding.UTF8.GetBytes(httpResponse);
-                    await stream.WriteAsync(responseBytes, 0, responseBytes.Length);
-                }
-            }
+            
             else
             {
-                // Handle unknown paths
+                // Handle unknown paths with a 404 Not Found response
                 httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
-                byte[] responseBytes = Encoding.UTF8.GetBytes(httpResponse);
-                await stream.WriteAsync(responseBytes, 0, responseBytes.Length);
             }
+
+            // Convert the response to bytes and asynchronously write to the network stream
+            byte[] responseBytes = Encoding.UTF8.GetBytes(httpResponse);
+            await stream.WriteAsync(responseBytes, 0, responseBytes.Length);
         }
         catch (Exception ex)
         {
