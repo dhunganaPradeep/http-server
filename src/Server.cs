@@ -35,7 +35,7 @@ class Program
         try
         {
             // Buffer to store the incoming request
-            byte[] buffer = new byte[4096]; // Increased buffer size for larger requests
+            byte[] buffer = new byte[1024];
             int received = socket.Receive(buffer);
 
             // Convert the bytes received into a string
@@ -52,18 +52,84 @@ class Program
             // Determine the response based on the URL path
             string httpResponse;
 
-            if (method == "GET" && urlPath == "/")
+            if (urlPath == "/")
             {
-                // Handle GET request to the root path "/"
                 httpResponse = "HTTP/1.1 200 OK\r\n\r\n";
             }
-            else if (method == "GET" && urlPath.StartsWith("/files/"))
+            else if (urlPath.StartsWith("/echo/"))
             {
-                // Handle the GET request for a file
+                // Extract the string after "/echo/"
+                string echoString = urlPath.Substring(6);
+
+                // Construct the response headers and body
+                httpResponse = "HTTP/1.1 200 OK\r\n" +
+                               "Content-Type: text/plain\r\n" +
+                               $"Content-Length: {echoString.Length}\r\n" +
+                               "\r\n" +
+                               echoString;
+            }
+            else if (urlPath == "/user-agent")
+            {
+                // Extract the User-Agent header
+                string userAgent = string.Empty;
+                string[] headers = request.Split("\r\n");
+
+                foreach (var header in headers)
+                {
+                    if (header.StartsWith("User-Agent:"))
+                    {
+                        userAgent = header.Substring(12).Trim();  // Extract User-Agent value
+                        break;
+                    }
+                }
+
+                // Construct the response headers and body
+                httpResponse = "HTTP/1.1 200 OK\r\n" +
+                               "Content-Type: text/plain\r\n" +
+                               $"Content-Length: {userAgent.Length}\r\n" +
+                               "\r\n" +
+                               userAgent;
+            }
+            else if (urlPath.StartsWith("/files/"))
+            {
+                // Extract the filename after "/files/"
                 string filename = urlPath.Substring(7);
                 string filePath = Path.Combine(directory, filename);
 
-                if (File.Exists(filePath))
+                if (method == "POST")
+                {
+                    // Extract the Content-Length header to determine the size of the body
+                    int contentLength = 0;
+                    string[] headers = request.Split("\r\n");
+
+                    foreach (var header in headers)
+                    {
+                        if (header.StartsWith("Content-Length:"))
+                        {
+                            contentLength = int.Parse(header.Substring(15).Trim());
+                            break;
+                        }
+                    }
+
+                    // Read the body
+                    byte[] bodyBuffer = new byte[contentLength];
+                    int bodyReceived = socket.Receive(bodyBuffer);
+
+                    if (bodyReceived == contentLength)
+                    {
+                        // Write the body content to the file
+                        File.WriteAllBytes(filePath, bodyBuffer);
+
+                        // Send a 201 Created response
+                        httpResponse = "HTTP/1.1 201 Created\r\n\r\n";
+                    }
+                    else
+                    {
+                        // If the body isn't fully received, send a 400 Bad Request response
+                        httpResponse = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                    }
+                }
+                else if (File.Exists(filePath))
                 {
                     byte[] fileBytes = File.ReadAllBytes(filePath);
                     httpResponse = "HTTP/1.1 200 OK\r\n" +
@@ -79,45 +145,8 @@ class Program
                     httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
                 }
             }
-            else if (method == "POST" && urlPath.StartsWith("/files/"))
-            {
-                // Handle the POST request
-                string filename = urlPath.Substring(7);
-                string filePath = Path.Combine(directory, filename);
-
-                // Extract the Content-Length header to determine the size of the body
-                string[] headers = request.Split("\r\n");
-                int contentLength = 0;
-                foreach (var header in headers)
-                {
-                    if (header.StartsWith("Content-Length:"))
-                    {
-                        contentLength = int.Parse(header.Substring("Content-Length:".Length).Trim());
-                        break;
-                    }
-                }
-
-                // Extract the body from the request (the body starts after two consecutive \r\n)
-                int headerEndIndex = request.IndexOf("\r\n\r\n");
-                if (headerEndIndex != -1)
-                {
-                    string requestBody = request.Substring(headerEndIndex + 4, contentLength);
-
-                    // Write the request body to the specified file
-                    File.WriteAllText(filePath, requestBody);
-
-                    // Respond with 201 Created
-                    httpResponse = "HTTP/1.1 201 Created\r\n\r\n";
-                }
-                else
-                {
-                    // Malformed request
-                    httpResponse = "HTTP/1.1 400 Bad Request\r\n\r\n";
-                }
-            }
             else
             {
-                // Handle other requests or 404 for unsupported methods
                 httpResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
             }
 
