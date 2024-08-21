@@ -1,7 +1,10 @@
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.IO;
 using System.Threading;
 
 class Program
@@ -26,8 +29,6 @@ class Program
             Thread clientThread = new Thread(() => HandleClient(socket, directory));
             clientThread.Start();
         }
-
-        // server.Stop(); // Server will keep running, no need to stop it here
     }
 
     static void HandleClient(Socket socket, string directory)
@@ -108,23 +109,39 @@ class Program
                 // Extract the string after "/echo/"
                 string echoString = urlPath.Substring(6);
 
-                // Construct the response headers and body
-                httpResponse = "HTTP/1.1 200 OK\r\n" +
-                               "Content-Type: text/plain\r\n" +
-                               $"Content-Length: {echoString.Length}\r\n";
+                // Determine if the response should be gzip compressed
+                bool shouldGzip = !string.IsNullOrEmpty(acceptEncoding) && acceptEncoding.Split(',').Select(e => e.Trim()).Contains("gzip");
+                
+                byte[] responseBody = Encoding.UTF8.GetBytes(echoString);
+                byte[] compressedBody = responseBody;
 
-                // Check for Accept-Encoding and handle accordingly
-                if (!string.IsNullOrEmpty(acceptEncoding))
+                // Compress the body if gzip is acceptable
+                if (shouldGzip)
                 {
-                    var encodings = acceptEncoding.Split(',').Select(e => e.Trim()).ToList();
-                    if (encodings.Contains("gzip"))
+                    using (var output = new MemoryStream())
+                    using (var gzip = new GZipStream(output, CompressionMode.Compress))
                     {
-                        // Add Content-Encoding header for gzip (compression not yet implemented)
-                        httpResponse += "Content-Encoding: gzip\r\n";
+                        gzip.Write(responseBody, 0, responseBody.Length);
+                        gzip.Close();
+                        compressedBody = output.ToArray();
                     }
                 }
 
-                httpResponse += "\r\n" + echoString;
+                // Construct the response headers and body
+                httpResponse = "HTTP/1.1 200 OK\r\n" +
+                               "Content-Type: text/plain\r\n" +
+                               $"Content-Length: {compressedBody.Length}\r\n";
+
+                if (shouldGzip)
+                {
+                    httpResponse += "Content-Encoding: gzip\r\n";
+                }
+
+                httpResponse += "\r\n";
+
+                // Send the response
+                socket.Send(Encoding.UTF8.GetBytes(httpResponse));
+                socket.Send(compressedBody);  // Send compressed body if applicable
             }
             else if (urlPath == "/user-agent")
             {
@@ -134,6 +151,7 @@ class Program
                                $"Content-Length: {userAgent.Length}\r\n" +
                                "\r\n" +
                                userAgent;
+                socket.Send(Encoding.UTF8.GetBytes(httpResponse));
             }
             else if (urlPath.StartsWith("/files/"))
             {
@@ -144,24 +162,38 @@ class Program
                 if (File.Exists(filePath))
                 {
                     byte[] fileBytes = File.ReadAllBytes(filePath);
-                    httpResponse = "HTTP/1.1 200 OK\r\n" +
-                                   "Content-Type: application/octet-stream\r\n" +
-                                   $"Content-Length: {fileBytes.Length}\r\n";
 
-                    // Check for Accept-Encoding and handle accordingly
-                    if (!string.IsNullOrEmpty(acceptEncoding))
+                    // Determine if the response should be gzip compressed
+                    bool shouldGzip = !string.IsNullOrEmpty(acceptEncoding) && acceptEncoding.Split(',').Select(e => e.Trim()).Contains("gzip");
+                    byte[] compressedFileBytes = fileBytes;
+
+                    // Compress the file content if gzip is acceptable
+                    if (shouldGzip)
                     {
-                        var encodings = acceptEncoding.Split(',').Select(e => e.Trim()).ToList();
-                        if (encodings.Contains("gzip"))
+                        using (var output = new MemoryStream())
+                        using (var gzip = new GZipStream(output, CompressionMode.Compress))
                         {
-                            // Add Content-Encoding header for gzip (compression not yet implemented)
-                            httpResponse += "Content-Encoding: gzip\r\n";
+                            gzip.Write(fileBytes, 0, fileBytes.Length);
+                            gzip.Close();
+                            compressedFileBytes = output.ToArray();
                         }
                     }
 
+                    // Construct the response headers and body
+                    httpResponse = "HTTP/1.1 200 OK\r\n" +
+                                   "Content-Type: application/octet-stream\r\n" +
+                                   $"Content-Length: {compressedFileBytes.Length}\r\n";
+
+                    if (shouldGzip)
+                    {
+                        httpResponse += "Content-Encoding: gzip\r\n";
+                    }
+
                     httpResponse += "\r\n";
+
+                    // Send the response
                     socket.Send(Encoding.UTF8.GetBytes(httpResponse));
-                    socket.Send(fileBytes);  // Send file content separately
+                    socket.Send(compressedFileBytes);  // Send compressed file content if applicable
                     return;
                 }
                 else
