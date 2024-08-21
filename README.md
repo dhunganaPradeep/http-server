@@ -1,6 +1,6 @@
 # HTTP Server
 
-This project is a simple HTTP server implemented in C with the help of the platform CodeCrafters. It handles basic HTTP GET and POST requests and can serve files from a specified directory. It includes support for compression using gzip and handles `Accept-Encoding` and `Content-Encoding` headers. The server listens on port 4221 by default.
+This project is a simple HTTP server implemented in C# with the help of the platform CodeCrafters. It handles basic HTTP GET and POST requests and can serve files from a specified directory. It includes support for compression using gzip and handles `Accept-Encoding` and `Content-Encoding` headers. The server listens on port 4221 by default.
 
 ## Features
 
@@ -64,7 +64,7 @@ curl -v -X POST http://localhost:4221/files/upload.txt -d 'Hello World'
 curl -v http://localhost:4221/files/upload.txt
 ```
 
-5. Request with Gzip Compression
+6. Request with Gzip Compression
 ```bash
 curl -v -H "Accept-Encoding: gzip" http://localhost:4221/echo/abc | hexdump -C
 ```
@@ -123,4 +123,3 @@ The `HandleClient` function processes the client's request and sends an appropri
 
 8. **Close the Connection**
     - Closes the socket connection after handling the request.
-
